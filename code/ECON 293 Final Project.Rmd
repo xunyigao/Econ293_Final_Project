@@ -1,0 +1,44 @@
+---
+title: "Machine Learning and Causal Inference Final Project"
+author: "Lucy Caffrey-Maffei"
+date: "5/12/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dplyr)
+library(haven)
+library(splines)
+library(glmnet)
+library(grf)
+library(recipes)
+library(fastDummies)
+library(haven)
+
+
+star <- read_sav("Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/PROJECT STAR (1)/STAR_Students.sav")
+names(star) <- tolower(names(star))
+options(stringAsFactors=FALSE)
+
+#data processing 
+#1. creating indicator variable for treatment group; 1 = in small class for at least a year in grades kinder - 3rd
+star$W <- ifelse(((star$gkclasstype == 1) | (star$g1classtype == 1) | (star$g2classtype) == 1 | (star$g3classtype == 1)), 1, 0)
+
+#2. creating indicators for what year students were in small classes. 1 = in small class, 0 = not in small class
+star$gk_smallclass <- case_when(star$gkclasstype == 1 ~ 1,
+                                ((star$gkclasstype == 2) | (star$gkclasstype == 3)) ~ 0)
+
+star$g1_smallclass <- case_when(star$g1classtype == 1 ~ 1,
+                                ((star$g1classtype == 2) | (star$g1classtype == 3)) ~ 0)
+
+star$g2_smallclass <- case_when(star$g2classtype == 1 ~ 1,
+                                    ((star$g2classtype == 2) | (star$g2classtype == 3)) ~ 0)
+
+star$g3_smallclass <- case_when(star$g3classtype == 1 ~ 1,
+                                    ((star$g3classtype == 2) | (star$g3classtype == 3)) ~ 0)
+
+
+```
