@@ -5,6 +5,9 @@ rm(list = ls())
 setwd("~/Documents/Github/Econ293_Final_Project/")
 
 library(pacman)
+library(grf)
+library(fastDummies)
+library(labelled)
 p_load(tidyverse, haven, readr, janitor)
 
 options(stringAsFactors=FALSE)
@@ -39,6 +42,7 @@ k3_schools <- k3_schools %>% clean_names()
 # create a duplicate of school data to merge into student data for each year of k-3
 k3_k_schools <- k3_schools
 
+
 colnames(k3_k_schools) <- paste(colnames(k3_k_schools), "k", sep = "_")
 
 k3_g1_schools <- k3_schools
@@ -67,6 +71,10 @@ star <- star %>%
 # Drop observations which have key variables missing
 na_counts = map(star, ~sum(is.na(.)))
 
+# Make categorical variables dummy - update with more covariates that are categorical when covars are decided
+
+star <- dummy_cols(star, select_columns = c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3ttrain", "g3freelunch"))
+
 # Define short-term: grade 3 outcomes
 short_term_outcomes <- c("g3treadss", "g3tmathss", "g3readbsraw", "g3mathbsraw")
 
@@ -85,9 +93,55 @@ star_short_term <- star_short_term %>%
 
 
 # Define long-term outcomes: grade 7 math and reading scores, high school GPA
-short_term_outcomes <- c("g7treadss", "g7tmathss", "hsgpaoverall")
+long_term_outcomes <- c("g7treadss", "g7tmathss", "hsgpaoverall")
 
 
+# Define covariates
+covariates <- c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3tyears", "g3ttrain", "g3classsize", "g3freelunch", "g3frlnch_g3", "g3bused_g3", "g3asian_g3", "g3black_g3", "g3hspanc_g3", "g3white_g3")
+
+
+# Define treatment group
+
+
+################## LONG TERM OUTCOMES MODELS############
+star_long_term <- star |>
+  select(W, 
+         long_term_outcomes,
+         covariates) |>
+  na.omit()
+
+W <- star_long_term$W 
+W <- remove_var_label(W)
+
+
+formula <- as.formula(paste0("~", paste0("bs(", covariates, ", df=3)", collapse="+")))
+
+XX <- model.matrix(formula(paste0("~", paste0(covariates, collapse="+"))), star)
+XX <- remove_var_label(XX)
+
+##7th grade reading scores
+Y <- star_long_term$g7treadss
+Y <- remove_var_label(Y)
+
+#getting an error on this causal forest about one of the parameters not being vectors
+g7read_forest <- causal_forest(XX, Y, W)
+g7read_tau_hat <- predict(g7read_forest)$predictions
+
+#7th grade math scores
+Y <- star$g7tmathss
+Y <- remove_var_label(Y)
+
+#getting an error on this causal forest about one of the parameters not being vectors
+g7math_forest <- causal_forest(XX, Y, W)
+g7math_tau_hat <- predict(g7math_forest)$predictions
+
+#high school gpa
+Y <- star$hsgpaoverall
+Y <- remove_var_label(Y)
+
+#getting an error on this causal forest about one of the parameters not being vectors
+hsgpa_forest <- causal_forest(XX, Y, W)
+hsgpa_tau_hat <- predict(hsgpa_forest)$predictions
 
 
 
