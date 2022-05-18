@@ -13,8 +13,6 @@ star <- read_sav("./data/STAR_Students.sav")
 names(star) <- tolower(names(star))
 
 #1. creating indicator variable for treatment group; 1 = in small class for at least a year in grades kinder - 3rd
-star$W <- ifelse(((star$gkclasstype == 1) | (star$g1classtype == 1) | (star$g2classtype) == 1 | (star$g3classtype == 1)), 1, 0)
-
 star <- star %>% 
   mutate(W = if_else(gkclasstype==1 | g1classtype==1 | g2classtype==1 | g3classtype==1, 1, 0)) %>% 
   mutate(W = if_else(is.na(W), 0, W))
@@ -62,7 +60,40 @@ star <- star %>%
   left_join(k3_g1_schools, by = c("g1schid" = "schid_g1")) %>% 
   left_join(k3_g2_schools, by = c("g2schid" = "schid_g2")) %>% 
   left_join(k3_g3_schools, by = c("g3schid" = "schid_g3"))
+
+# Drop variables with too many missing observations
+
   
+# Drop observations which have key variables missing
+na_counts = map(star, ~sum(is.na(.)))
+
+# Define short-term: grade 3 outcomes
+short_term_outcomes <- c("g3treadss", "g3tmathss", "g3readbsraw", "g3mathbsraw")
+
+# List of variables to drop whe predicting short-term outcomes
+drop_for_short_term <- c("g3tlistss", "g3sciencess", "g3socialsciss", "g3spellss",
+                         "g3vocabss", "g3mathcomputss", "g3mathnumconcss", 
+                         "g3mathapplss", "g3wordskillss", "g3mathbsobjraw", 
+                         "g3mathbsobjpct", "g3readbsobjpct")
+
+# Drop the other grade 3 outcomes from the list above
+star_short_term <- star[,!(names(star) %in% drop_for_short_term)]
+
+# Drop future (beyond grade 3) outcomes and characteristics
+star_short_term <- star_short_term %>% 
+  select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs")))
+
+
+# Define long-term outcomes: grade 7 math and reading scores, high school GPA
+short_term_outcomes <- c("g7treadss", "g7tmathss", "hsgpaoverall")
+
+
+
+
+
+
+
+
 
 
 
