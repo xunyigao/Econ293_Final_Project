@@ -5,10 +5,7 @@ rm(list = ls())
 setwd("~/Documents/Github/Econ293_Final_Project/")
 
 library(pacman)
-library(grf)
-library(fastDummies)
-library(labelled)
-p_load(tidyverse, haven, readr, janitor)
+p_load(tidyverse, haven, readr, janitor, grf, fastDummies, labelled)
 
 options(stringAsFactors=FALSE)
 
@@ -73,7 +70,7 @@ na_counts = map(star, ~sum(is.na(.)))
 
 # Make categorical variables dummy - update with more covariates that are categorical when covars are decided
 
-star <- dummy_cols(star, select_columns = c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3ttrain", "g3freelunch"))
+# star <- dummy_cols(star, select_columns = c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3ttrain", "g3freelunch"))
 
 # Define short-term: grade 3 outcomes
 short_term_outcomes <- c("g3treadss", "g3tmathss", "g3readbsraw", "g3mathbsraw")
@@ -89,21 +86,25 @@ star_short_term <- star[,!(names(star) %in% drop_for_short_term)]
 
 # Drop future (beyond grade 3) outcomes and characteristics
 star_short_term <- star_short_term %>% 
-  select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs")))
+  select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs"))) %>% 
+  select(!contains("tchid"))
 
 
 # Define long-term outcomes: grade 7 math and reading scores, high school GPA
 long_term_outcomes <- c("g7treadss", "g7tmathss", "hsgpaoverall")
 
-
-# Define covariates
-covariates <- c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3tyears", "g3ttrain", "g3classsize", "g3freelunch", "g3frlnch_g3", "g3bused_g3", "g3asian_g3", "g3black_g3", "g3hspanc_g3", "g3white_g3")
-
-
-# Define treatment group
+save(star_short_term, file="./data/star_short_term.rda")
 
 
 ################## LONG TERM OUTCOMES MODELS############
+
+
+# Define covariates
+covariates <- c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", 
+                "g3tcareer", "g3tyears", "g3ttrain", "g3classsize", "g3freelunch",
+                "g3frlnch_g3", "g3bused_g3", "g3asian_g3", "g3black_g3", "g3hspanc_g3", "g3white_g3")
+
+
 star_long_term <- star |>
   select(W, 
          long_term_outcomes,
