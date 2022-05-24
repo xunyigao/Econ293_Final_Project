@@ -5,7 +5,10 @@ rm(list = ls())
 setwd("~/Documents/Github/Econ293_Final_Project/")
 
 library(pacman)
-p_load(tidyverse, haven, readr, janitor, grf, fastDummies, labelled)
+library(grf)
+library(fastDummies)
+library(labelled)
+p_load(tidyverse, haven, readr, janitor)
 
 options(stringAsFactors=FALSE)
 
@@ -70,10 +73,12 @@ na_counts = map(star, ~sum(is.na(.)))
 
 # Make categorical variables dummy - update with more covariates that are categorical when covars are decided
 
-# star <- dummy_cols(star, select_columns = c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3ttrain", "g3freelunch"))
+#star <- dummy_cols(star, select_columns = c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", "g3tcareer", "g3ttrain", "g3freelunch"))
 
+#SHORT TERM OUTCOMES
 # Define short-term: grade 3 outcomes
-short_term_outcomes <- c("g3treadss", "g3tmathss", "g3readbsraw", "g3mathbsraw")
+short_term_outcomes <- c("g3treadss", "g3tmathss", "g3readbsraw",
+                         "g3mathbsraw")
 
 # List of variables to drop whe predicting short-term outcomes
 drop_for_short_term <- c("g3tlistss", "g3sciencess", "g3socialsciss", "g3spellss",
@@ -86,70 +91,32 @@ star_short_term <- star[,!(names(star) %in% drop_for_short_term)]
 
 # Drop future (beyond grade 3) outcomes and characteristics
 star_short_term <- star_short_term %>% 
-  select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs"))) %>% 
-  select(!contains("tchid"))
+  select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs")))
 
+# LONG TERM OUTCOMES
+#7TH GRADE
+# Define one long term outcome: 7th grade outcomes
+g7_outcomes <- c("g7treadss", "g7tmathss")
 
-# Define long-term outcomes: grade 7 math and reading scores, high school GPA
-long_term_outcomes <- c("g7treadss", "g7tmathss", "hsgpaoverall")
+# List of variables to drop when predicting 7th grade outcomes
+drop_for_g7 <- c("g7tlangss","g7tbattss", "g7sciencess", "g7socialsciss",
+                 "g7readcomprehss", "g7spellss", "g7vocabss", "g7mathcomputss",
+                 "g7mathconcapplss", "g7langexpss", "g7langmechss", 
+                 "g7studyskillss", "g7readbsobjraw", "g7mathbsobjraw")
 
-save(star_short_term, file="./data/star_short_term.rda")
+# Drop the other grade 7 outcomes from the list above
+star_g7 <- star[,!(names(star) %in% drop_for_g7)]
 
+# Drop future (beyond grade 7) outcomes and characteristics)
+star_g7 <- star_g7 |>
+  select(!starts_with(c("g8", "hs")))
 
-################## LONG TERM OUTCOMES MODELS############
+# high school GPA
+hs_outcomes <- c("hsgpaoverall")
 
+#drop other HS GPA outcomes
+drop_for_hs <- c("hsgpaflang", "hsgpamath", "hsgpascience")
 
-# Define covariates
-covariates <- c("race", "gender", "g3surban", "g3tgen", "g3trace", "g3thighdegree", 
-                "g3tcareer", "g3tyears", "g3ttrain", "g3classsize", "g3freelunch",
-                "g3frlnch_g3", "g3bused_g3", "g3asian_g3", "g3black_g3", "g3hspanc_g3", "g3white_g3")
-
-
-star_long_term <- star |>
-  select(W, 
-         long_term_outcomes,
-         covariates) |>
-  na.omit()
-
-W <- star_long_term$W 
-W <- remove_var_label(W)
-
-
-formula <- as.formula(paste0("~", paste0("bs(", covariates, ", df=3)", collapse="+")))
-
-XX <- model.matrix(formula(paste0("~", paste0(covariates, collapse="+"))), star)
-XX <- remove_var_label(XX)
-
-##7th grade reading scores
-Y <- star_long_term$g7treadss
-Y <- remove_var_label(Y)
-
-#getting an error on this causal forest about one of the parameters not being vectors
-g7read_forest <- causal_forest(XX, Y, W)
-g7read_tau_hat <- predict(g7read_forest)$predictions
-
-#7th grade math scores
-Y <- star$g7tmathss
-Y <- remove_var_label(Y)
-
-#getting an error on this causal forest about one of the parameters not being vectors
-g7math_forest <- causal_forest(XX, Y, W)
-g7math_tau_hat <- predict(g7math_forest)$predictions
-
-#high school gpa
-Y <- star$hsgpaoverall
-Y <- remove_var_label(Y)
-
-#getting an error on this causal forest about one of the parameters not being vectors
-hsgpa_forest <- causal_forest(XX, Y, W)
-hsgpa_tau_hat <- predict(hsgpa_forest)$predictions
-
-
-
-
-
-
-
-
-
+# Drop the other HS GPA outcomes from the list above
+star_hs <- star[,!(names(star) %in% drop_for_hs)]
 
