@@ -23,6 +23,29 @@ star_hs_x <- star_hs_1 |>
   select(-W, -stdntid) |>
   select(!contains(c(hs_outcomes)))
 
+#ATE via linear regression
+bivariate_ols <- lm(hsgpaoverall ~ W, data=star_hs_1)
+summary(bivariate_ols)
+
+yearssmall_ols <- lm(hsgpaoverall ~ as.factor(yearssmall), data=star_hs_1)
+summary(yearssmall_ols)
+
+ksmall_ols <- lm(hsgpaoverall ~ gk_smallclass, data=star_hs_1)
+summary(ksmall_ols)
+
+g1small_ols <- lm(hsgpaoverall ~ g1_smallclass, data=star_hs_1)
+summary(g1small_ols)
+
+g2small_ols <- lm(hsgpaoverall ~ g2_smallclass, data=star_hs_1)
+summary(g2small_ols)
+
+g3small_ols <- lm(hsgpaoverall ~ g3_smallclass, data=star_hs_1)
+summary(g3small_ols)
+
+
+
+#HTE
+
 n <- nrow(star_hs_1)
 
 # Number of rankings predictions will be ranked on

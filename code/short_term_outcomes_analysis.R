@@ -35,7 +35,7 @@ num.rankings <- 5
 
 # Prepare for data.splitting
 # Assign a fold number to each observation.
-# The argument 'clusters' in the next step will mimick K-fold cross-fitting.
+# The argument 'clusters' in the next step will mimic K-fold cross-fitting.
 num.folds <- 10
 folds <- sort(seq(n) %% num.folds) + 1
 
@@ -46,6 +46,7 @@ forest <- causal_forest(X = star_short_term_x, Y=Y, W=W,
 
 
 average_treatment_effect(forest, target.sample = "overlap", method = "AIPW")
+
 test_calibration(forest)
 
 # Explore variable importance suggested by the causal forest

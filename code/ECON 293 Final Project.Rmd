@@ -5,6 +5,8 @@ date: "5/12/2022"
 output: word_document
 ---
 
+# Setup
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -40,5 +42,153 @@ star$g2_smallclass <- case_when(star$g2classtype == 1 ~ 1,
 star$g3_smallclass <- case_when(star$g3classtype == 1 ~ 1,
                                     ((star$g3classtype == 2) | (star$g3classtype == 3)) ~ 0)
 
+
+```
+
+# Short-Term Effects Analysis
+
+## 3rd grade math
+
+### Cleaning
+
+```{r}
+
+```
+
+### ATE via linear regression
+
+```{r}
+
+```
+
+### HTE via causal forest
+
+```{r}
+
+```
+
+### Visualizations
+
+```{r}
+
+```
+
+## 3rd grade reading
+
+### Cleaning
+
+```{r}
+
+```
+
+### ATE via linear regression
+
+```{r}
+
+```
+
+### HTE via causal forest
+
+```{r}
+
+```
+
+### Visualizations
+
+```{r}
+
+```
+
+# Long-Term Effects Analysis
+
+## 7th grade math
+
+### Cleaning
+
+```{r}
+
+```
+
+### ATE via linear regression
+
+```{r}
+
+```
+
+### HTE via causal forest
+
+```{r}
+
+```
+
+### Visualizations
+
+```{r}
+
+```
+
+## 7th grade reading
+
+### Cleaning
+
+```{r}
+
+```
+
+### ATE via linear regression
+
+```{r}
+
+```
+
+### HTE via causal forest
+
+```{r}
+
+```
+
+### Visualizations
+
+```{r}
+
+```
+
+## High School GPA
+
+### Cleaning
+
+```{r}
+
+```
+
+### ATE via linear regression
+
+```{r}
+
+```
+
+### HTE via causal forest
+
+```{r}
+
+```
+
+### Visualizations
+
+```{r}
+
+```
+
+# Cost-Benefit Analysis
+
+### Cleaning
+
+```{r}
+
+```
+
+### Visualizations
+
+```{r}
 
 ```
