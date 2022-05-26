@@ -85,7 +85,7 @@ num.rankings <- 5
 
 # Prepare for data.splitting
 # Assign a fold number to each observation.
-# The argument 'clusters' in the next step will mimick K-fold cross-fitting.
+# The argument 'clusters' in the next step will mimic K-fold cross-fitting.
 num.folds <- 10
 folds <- sort(seq(n) %% num.folds) + 1
 
