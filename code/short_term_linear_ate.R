@@ -16,8 +16,47 @@ star_short_term_x <- star_short_term_1 %>%
   select(!contains(c(short_term_outcomes)))
 
 #3RD GRADE MATH
-
 #ATE via linear regression (simple models)
+bivariate_ols <- lm(g3tmathss ~ W + as.factor(gkschid)
+                    + as.factor(g1schid)
+                    + as.factor(g2schid)
+                    + as.factor(g3schid), data=star_short_term_1)
+summary(bivariate_ols)
+
+yearssmall_ols <- lm(g3tmathss ~ as.factor(yearssmall) 
+                     + as.factor(gkschid)
+                     + as.factor(g1schid)
+                     + as.factor(g2schid)
+                     + as.factor(g3schid), data=star_short_term_1)
+summary(yearssmall_ols)
+
+ksmall_ols <- lm(g3tmathss ~ gk_smallclass + as.factor(gkschid)
+                 + as.factor(g1schid)
+                 + as.factor(g2schid)
+                 + as.factor(g3schid), data=star_short_term_1)
+summary(ksmall_ols)
+
+g1small_ols <- lm(g3tmathss ~ g1_smallclass 
+                  + as.factor(gkschid)
+                  + as.factor(g1schid)
+                  + as.factor(g2schid)
+                  + as.factor(g3schid), data=star_short_term_1)
+summary(g1small_ols)
+
+g2small_ols <- lm(g3tmathss ~ g2_smallclass + as.factor(gkschid)
+                  + as.factor(g1schid)
+                  + as.factor(g2schid)
+                  + as.factor(g3schid)
+                  , data=star_short_term_1)
+summary(g2small_ols)
+
+g3small_ols <- lm(g3tmathss ~ g3_smallclass + as.factor(gkschid)
+                  + as.factor(g1schid)
+                  + as.factor(g2schid)
+                  + as.factor(g3schid), data=star_short_term_1)
+summary(g3small_ols)
+
+#ATE via linear regression (complex models)
 bivariate_ols <- lm(g3tmathss ~ W + as.factor(gkschid)
                     + as.factor(g1schid)
                     + as.factor(g2schid)

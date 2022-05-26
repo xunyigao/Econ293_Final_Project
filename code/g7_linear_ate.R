@@ -15,7 +15,7 @@ Y <- star_g7_math |>
   pull(outcome) |>
   as.vector()
 
-#ATE via linear regression (complex models)
+#ATE via linear regression (simple models)
 bivariate_ols <- lm(g7tmathss ~ W 
                     + as.factor(gkschid)
                     + as.factor(g1schid)

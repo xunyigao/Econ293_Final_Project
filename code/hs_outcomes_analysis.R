@@ -38,7 +38,7 @@ num.folds <- 10
 folds <- sort(seq(n) %% num.folds) + 1
 
 # Estimate a causal forest
-forest <- causal_forest(X = star_hs_x, Y=Y, W=W,
+forest <- causal_forest(X = star_hs_x, Y=Y, W=W, W.hat=mean(W),
                         clusters = star_hs_x$hsid,
                         min.node.size = 5)
 

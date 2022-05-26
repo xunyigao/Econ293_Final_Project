@@ -23,7 +23,6 @@ star_g7_x <- star_g7_math |>
   select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura,
          -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
   select(!starts_with(c("birth", "flagsgk"))) |>
-  select(!ends_with("schid")) |>
   select(!contains(c(g7_outcomes)))
 
 
@@ -100,7 +99,6 @@ star_g7_x <- star_g7_reading |>
   select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura,
          -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
   select(!starts_with(c("birth", "flagsgk"))) |>
-  select(!ends_with("schid")) |>
   select(!contains(c(g7_outcomes)))
 
 
