@@ -32,12 +32,12 @@ setwd("~/Documents/Github/Econ293_Final_Project/")
 star <- read_sav("./data/STAR_Students.sav")
 names(star) <- tolower(names(star))
 
-#1. creating indicator variable for treatment group; 1 = in small class for at least a year in grades kinder - 3rd
+# creating indicator variable for treatment group; 1 = in small class for at least a year in grades kinder - 3rd
 star <- star %>% 
   mutate(W = if_else(gkclasstype==1 | g1classtype==1 | g2classtype==1 | g3classtype==1, 1, 0)) %>% 
-  mutate(W = if_else(is.na(W), 0, W))
+  mutate(W = if_else(is.na(W), 0, W)) 
 
-#2. creating indicators for what year students were in small classes. 1 = in small class, 0 = not in small class
+# creating indicators for what year students were in small classes. 1 = in small class, 0 = not in small class
 star$gk_smallclass <- case_when(star$gkclasstype == 1 ~ 1,
                                 ((star$gkclasstype == 2) | (star$gkclasstype == 3)) ~ 0)
 
@@ -50,6 +50,12 @@ star$g2_smallclass <- case_when(star$g2classtype == 1 ~ 1,
 star$g3_smallclass <- case_when(star$g3classtype == 1 ~ 1,
                                 ((star$g3classtype == 2) | (star$g3classtype == 3)) ~ 0)
 
+# creating school id variable for school student was in in their first year of STAR
+
+star$schid_yr1star <- case_when(star$flagsgk == 1 ~ star$gkschid,
+                                ((star$flagsgk == 0) & (star$flagsg1 == 1)) ~ star$g1schid,
+                                ((star$flagsgk == 0) & (star$flagsg1 == 0) & (star$flagsg2 == 1)) ~ star$g2schid,
+                                ((star$flagsgk == 0) & (star$flagsg1 == 0) & (star$flagsg2 == 0) & (star$flagsg3 == 1)) ~ star$g3schid)
 
 # Load K-3 school level data
 k3_schools <- read_sav("./data/STAR_K-3_Schools.sav")
@@ -299,9 +305,9 @@ Y <- star_g7_math |>
   as.vector()
 
 star_g7_x <- star_g7_math |>
-  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura,
-         -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
-  select(!starts_with(c("birth", "flagsgk"))) |>
+  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
+  select(!starts_with(c("birth", "flag"))) |>
+  select(!ends_with("schid")) |>
   select(!contains(c(g7_outcomes)))
 
 ```
@@ -395,7 +401,7 @@ folds <- sort(seq(n) %% num.folds) + 1
 
 # Estimate a causal forest
 forest <- causal_forest(X=star_g7_x, Y=Y, W=W, W.hat=mean(W),
-                        clusters = star_g7_math$g7schid,
+                        clusters = star_g7_math$schid_yr1star,
                         min.node.size = 5)
 
 #histogram of estimated HTE via causal forest
@@ -456,9 +462,9 @@ Y <- star_g7_reading |>
   as.vector()
 
 star_g7_x <- star_g7_reading |>
-  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura,
-         -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
-  select(!starts_with(c("birth", "flagsgk"))) |>
+  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
+  select(!starts_with(c("birth", "flag"))) |>
+  select(!ends_with("schid")) |>
   select(!contains(c(g7_outcomes)))
 ```
 
@@ -547,7 +553,7 @@ folds <- sort(seq(n) %% num.folds) + 1
 
 # Estimate a causal forest
 forest <- causal_forest(X = star_g7_x, Y=Y, W=W,W.hat=mean(W),
-                        clusters = star_g7_reading$g7schid,
+                        clusters = star_g7_reading$schid_yr1star,
                         min.node.size = 5)
 
 #histogram of estimated heterogeneous effects

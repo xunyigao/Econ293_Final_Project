@@ -33,6 +33,12 @@ star$g2_smallclass <- case_when(star$g2classtype == 1 ~ 1,
 star$g3_smallclass <- case_when(star$g3classtype == 1 ~ 1,
                                 ((star$g3classtype == 2) | (star$g3classtype == 3)) ~ 0)
 
+# creating school id variable for school student was in in their first year of STAR
+
+star$schid_yr1star <- case_when(star$flagsgk == 1 ~ star$gkschid,
+                                ((star$flagsgk == 0) & (star$flagsg1 == 1)) ~ star$g1schid,
+                                ((star$flagsgk == 0) & (star$flagsg1 == 0) & (star$flagsg2 == 1)) ~ star$g2schid,
+                                ((star$flagsgk == 0) & (star$flagsg1 == 0) & (star$flagsg2 == 0) & (star$flagsg3 == 1)) ~ star$g3schid)
 
 # Load K-3 school level data
 k3_schools <- read_sav("./data/STAR_K-3_Schools.sav")
