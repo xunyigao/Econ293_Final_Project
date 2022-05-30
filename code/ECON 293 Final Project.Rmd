@@ -407,12 +407,16 @@ forest <- causal_forest(X=star_g7_x, Y=Y, W=W, W.hat=mean(W),
 #histogram of estimated HTE via causal forest
 hist(predict(forest)$predictions)
 
+#save estimates to dataframe
+star_g7_math_hte <- star_g7_math
+star_g7_math_hte$hte <- forest$predictions
+
+
 #estimated ATE
 g7_ate_math <- average_treatment_effect(forest, target.sample = "overlap", method = "AIPW")
 g7_ate_math_se <- g7_ate_math[2]
 g7_ate_math <- g7_ate_math[1]
 
-#not statistically significant
 print(paste0("95% CI: ", round(g7_ate_math,2),
              " +/- ", round(1.96 * g7_ate_math_se, 2)))
 
@@ -559,6 +563,10 @@ forest <- causal_forest(X = star_g7_x, Y=Y, W=W,W.hat=mean(W),
 #histogram of estimated heterogeneous effects
 hist(predict(forest)$predictions)
 
+#saving HTEs to dataframe
+star_g7_reading_hte <- star_g7_reading
+star_g7_reading_hte$hte <- forest$predictions
+
 #estimated ATEs
 g7_ate_reading <- average_treatment_effect(forest, target.sample = "overlap", method = "AIPW")
 g7_ate_reading_se <- g7_ate_reading[2]
@@ -690,6 +698,10 @@ forest <- causal_forest(X = star_hs_x, Y=Y, W=W, W.hat=mean(W),
 
 #histogram of estimated HTE via causal forest
 hist(predict(forest)$predictions)
+
+#saving HTEs to dataframe
+star_hs_1_hte <- star_hs_1
+star_hs_1_hte$hte <- forest$predictions
 
 #ate predictions
 hs_ate <- average_treatment_effect(forest, target.sample = "overlap", method = "AIPW")
