@@ -22,6 +22,8 @@ library(haven)
 library(pacman)
 library(readr)
 library(janitor)
+library(pacman)
+p_load(labelled, plm, sandwich, lmtest, glue)
 
 # Set working directory
 options(stringAsFactors=FALSE)
@@ -94,8 +96,8 @@ na_counts = map(star, ~sum(is.na(.)))
 
 #SHORT TERM OUTCOMES
 # Define short-term: grade 3 outcomes
-short_term_outcomes <- c("g3treadss", "g3tmathss", "g3readbsraw",
-                         "g3mathbsraw")
+short_term_outcomes <- c("g1treadss", "g1tmathss", "g1wordskillss")
+
 
 # List of variables to drop whe predicting short-term outcomes
 drop_for_short_term <- c("g3tlistss", "g3sciencess", "g3socialsciss", "g3spellss",
@@ -140,148 +142,147 @@ star_hs <- star[,!(names(star) %in% drop_for_hs)]
 
 # Short-Term Effects Analysis
 
-## 3rd grade math
+## 1st grade
 
 ### Cleaning
 
 ```{r g3 math cleaning}
 
+star_short_term <- star_short_term %>% 
+  filter(!is.na(g1_smallclass)) %>% 
+  mutate(W = if_else(g1_smallclass==1, 1, 0))
+  
+
+star_short_term <- star_short_term %>% 
+  dplyr::select(-gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,
+                -yearssmall, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass,
+                -yearsstar, -g1readbsraw, -g1mathbsraw, -g1readbsobjraw, -g1mathbsobjraw,
+                -g1readbsobjpct, -g1mathbsobjpct, -g1tchid, -gktchid, -g1promote, -cmpsdura)
+
+# star_short_term_1 <- star_short_term %>%
+#   filter(!is.na(g3tmathss)) %>%
+#   dplyr::select(-(ends_with("_k") | ends_with("_g1") | ends_with("_g2"))) 
+
+# Exclude schoo level characteristics
+star_short_term_1 <- star_short_term %>%
+  dplyr::select(-(ends_with("_k") | ends_with("_g1") | ends_with("_g2") | ends_with("_g3")))
+
+star_short_term_1 <- star_short_term_1 %>%
+  dplyr::select(-(starts_with("g2") | starts_with("g3")))
+
+std_err <- function(x) sd(x)/sqrt(length(x))
+
+
 ```
 
-### ATE via linear regression
+### Math and Reading ATE via linear regression and causal forest
 
 ```{r g3 math linear regression}
 
-#primary analysis
-bivariate_ols <- lm(g3tmathss ~ W + as.factor(gkschid)
-                    + as.factor(g1schid)
-                    + as.factor(g2schid)
-                    + as.factor(g3schid), data=star_short_term_1)
-summary(bivariate_ols)
 
-#exploratory analyses
-yearssmall_ols <- lm(g3tmathss ~ as.factor(yearssmall) 
-                     + as.factor(gkschid)
-                     + as.factor(g1schid)
-                     + as.factor(g2schid)
-                     + as.factor(g3schid), data=star_short_term_1)
-summary(yearssmall_ols)
+for (outcome in short_term_outcomes) {
+  
+  # Drop observations with missing values for the outcome
+  star_short_term_1 <- star_short_term_1 %>%
+    filter(!is.na(get(outcome)))
+  
+  # Define outcome and treatment vectors
+  W <- star_short_term_1$W
+  
+  Y <- star_short_term_1 %>% pull(outcome) %>% as.vector()
+  
+  # Drop other covariates that are not useful
+  star_short_term_x <- star_short_term_1 %>% 
+    dplyr::select(-W, -stdntid) %>% 
+    dplyr::select(-contains(c(short_term_outcomes))) %>% 
+    dplyr::select(-contains("classsize")) %>% 
+    dplyr::select(-contains("flag")) %>% 
+    dplyr::select(-gkschid, -schid_yr1star)
+  
+  n <- nrow(star_short_term_1)
+  
+  
+  # Linear Regression -------------------------------------------------------
+  
+  # Define a list of covariates manually inputed
+  covariates <- c("race", "gender", "birthyear", "g1surban", "g2surban",
+                  "g2readbsraw", "g2motivraw", "g3surban",
+                  "g3freelunch", "g3schid", "g3tyears", "g2tyear")
+  
+  star_short_term_cov <- star_short_term_x %>% 
+    dplyr::select(contains(c(covariates))) 
+  
+  
+  linear_model_data <- star_short_term_x %>%
+    mutate(W = W,
+           y = Y) %>%
+    dplyr::select(W, y, race, gender, birthyear, g1surban,
+                  g1freelunch, g1schid)
+  
+  fe_model <- plm(y ~ factor(W) + factor(race) + gender + g1surban + g1freelunch,
+                  data = linear_model_data,
+                  index = c("g1schid"),
+                  model = "within")
+  
+  # print summary using robust standard errors
+  print(outcome)
+  print(coeftest(fe_model, vcov. = vcovHC, type = "HC1"))
+  
+  # Causal Forest -----------------------------------------------------------
+  
+  # Estimate a causal forest
+  forest <- causal_forest(X = star_short_term_x, Y=Y, W=W, 
+                          clusters = star_short_term_x$g1schid,
+                          min.node.size = 5,
+                          tune.parameters = "all",
+                          seed = 20220524)
+  
+  # Plot propensity scores
+  hist(forest$W.hat)
+  
+  # Average treatment effect
+  ate <- average_treatment_effect(forest, method = "AIPW")
+  print(ate)
+  
+  print(paste0("95% CI: ", round(ate[1],2),
+             " +/- ", round(1.96 * ate[2], 2)))
+  
+  # Test for heterogeneous treatment effects
+  print(test_calibration(forest))
+  
+  #
+  # Explore variable importance suggested by the causal forest
+   var_importance <- variable_importance(forest) %>% 
+     as_tibble() %>% 
+     mutate(n_col = row_number()) %>% 
+     arrange(-V1)
+   
+   important_vars <- var_importance %>% 
+     slice(1:10) %>% 
+     pull(n_col)          
+   
+   important_vars_names <- names(star_short_term_x[important_vars])
+   print(important_vars_names)
+  
+  star_short_term_x <- star_short_term_x %>% 
+    mutate(cate_estimate = predict(forest)$predictions)
+  
+  hist(predict(forest)$predictions)
+  
+  # ggplot(star_short_term_x, aes(race, g1freelunch, fill = cate_estimate)) +
+  #   geom_raster()
+  # 
+  # star_short_term_x %>% 
+  #   # group_by(race) %>% 
+  #   # summarize(mean_cate = mean(cate_estimate)) %>% 
+  #   # ungroup() %>% 
+  #   ggplot(aes(x = factor(g1surban), y = cate_estimate)) +
+  #   geom_boxplot(aes(group = factor(g1surban)))
+  
+  
+  save(star_short_term_x, file = glue("./data/cate_estimates_short_term_{outcome}.rda"))
 
-ksmall_ols <- lm(g3tmathss ~ gk_smallclass + as.factor(gkschid)
-                 + as.factor(g1schid)
-                 + as.factor(g2schid)
-                 + as.factor(g3schid), data=star_short_term_1)
-summary(ksmall_ols)
-
-g1small_ols <- lm(g3tmathss ~ g1_smallclass 
-                  + as.factor(gkschid)
-                  + as.factor(g1schid)
-                  + as.factor(g2schid)
-                  + as.factor(g3schid), data=star_short_term_1)
-summary(g1small_ols)
-
-g2small_ols <- lm(g3tmathss ~ g2_smallclass + as.factor(gkschid)
-                  + as.factor(g1schid)
-                  + as.factor(g2schid)
-                  + as.factor(g3schid)
-                  , data=star_short_term_1)
-summary(g2small_ols)
-
-g3small_ols <- lm(g3tmathss ~ g3_smallclass + as.factor(gkschid)
-                  + as.factor(g1schid)
-                  + as.factor(g2schid)
-                  + as.factor(g3schid), data=star_short_term_1)
-summary(g3small_ols)
-```
-
-### ATE via Causal Forest/AIPW
-
-```{r g3 math aipw}
-set.seed(123)
-```
-
-### HTE via Causal Forest
-
-```{r g3 math hte}
-g3_math_hte <- test_calibration(forest)
-g3_math_hte
-```
-
-### Visualizations
-
-```{r g3 math visualzation}
-
-```
-
-## 3rd grade reading
-
-### Cleaning
-
-```{r g3 reading cleaning}
-
-```
-
-### ATE via linear regression
-
-```{r g3 reading linear regression}
-
-#primary analysis
-bivariate_ols <- lm(g3treadss ~ W + as.factor(gkschid)
-                    + as.factor(g1schid)
-                    + as.factor(g2schid)
-                    + as.factor(g3schid)
-                    , data=star_short_term_2)
-summary(bivariate_ols)
-
-#exploratory analyses
-yearssmall_ols <- lm(g3treadss ~ as.factor(yearssmall) + as.factor(gkschid)
-                     + as.factor(g1schid)
-                     + as.factor(g2schid)
-                     + as.factor(g3schid), data=star_short_term_2)
-summary(yearssmall_ols)
-
-ksmall_ols <- lm(g3treadss ~ gk_smallclass + as.factor(gkschid)
-                 + as.factor(g1schid)
-                 + as.factor(g2schid)
-                 + as.factor(g3schid), data=star_short_term_2)
-summary(ksmall_ols)
-
-g1small_ols <- lm(g3treadss ~ g1_smallclass + as.factor(gkschid)
-                  + as.factor(g1schid)
-                  + as.factor(g2schid)
-                  + as.factor(g3schid), data=star_short_term_2)
-summary(g1small_ols)
-
-g2small_ols <- lm(g3treadss ~ g2_smallclass + as.factor(gkschid)
-                  + as.factor(g1schid)
-                  + as.factor(g2schid)
-                  + as.factor(g3schid), data=star_short_term_2)
-summary(g2small_ols)
-
-g3small_ols <- lm(g3treadss ~ g3_smallclass + as.factor(gkschid)
-                  + as.factor(g1schid)
-                  + as.factor(g2schid)
-                  + as.factor(g3schid), data=star_short_term_2)
-summary(g3small_ols)
-```
-
-### ATE via Causal Forest/AIPW
-
-```{r g3 reading aipw}
-set.seed(123)
-```
-
-### HTE via Causal Forest
-
-```{r g3 reading hte}
-g3_reading_hte <- test_calibration(forest)
-g3_reading_hte
-```
-
-### Visualizations
-
-```{r g3 reading visualization}
-
+}
 ```
 
 # Long-Term Effects Analysis
@@ -305,9 +306,9 @@ Y <- star_g7_math |>
   as.vector()
 
 star_g7_x <- star_g7_math |>
-  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
+  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, -yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
   select(!starts_with(c("birth", "flag"))) |>
-  select(!ends_with("schid")) |>
+  select(!ends_with(c("schid", "promote", "_k", "_g1", "_g2", "_g3", "tchid", "classsize"))) |>
   select(!contains(c(g7_outcomes)))
 
 ```
@@ -316,6 +317,16 @@ star_g7_x <- star_g7_math |>
 
 ```{r g7 math linear regression}
 #primary analysis
+linear_regression <- plm(g7tmathss ~ factor(W) + factor(race) + gender + gksurban + g1surban + g2surban + g3surban + gkfreelunch + g1freelunch + g2freelunch + g3freelunch,
+                  data = star_g7_math,
+                  index = c("schid_yr1star"),
+                  model = "within")
+  
+# print summary using robust standard errors
+coeftest(linear_regression, vcov. = vcovHC, type = "HC1")
+
+
+#other exploratory analyses
 bivariate_ols <- lm(g7tmathss ~ W 
                     + as.factor(gkschid)
                     + as.factor(g1schid)
@@ -327,7 +338,7 @@ bivariate_ols <- lm(g7tmathss ~ W
                     + as.factor(g7schid), data=star_g7_math)
 summary(bivariate_ols)
 
-#other exploratory analyses
+
 yearssmall_ols <- lm(g7tmathss ~ as.factor(yearssmall) 
                      + as.factor(gkschid)
                      + as.factor(g1schid)
@@ -387,7 +398,7 @@ summary(g3small_ols)
 ### ATE via Causal Forest/AIPW
 
 ```{r g7 math aipw}
-set.seed(123)
+
 n <-nrow(star_g7_math)
 
 # Number of rankings predictions will be ranked on
@@ -402,7 +413,9 @@ folds <- sort(seq(n) %% num.folds) + 1
 # Estimate a causal forest
 forest <- causal_forest(X=star_g7_x, Y=Y, W=W, W.hat=mean(W),
                         clusters = star_g7_math$schid_yr1star,
-                        min.node.size = 5)
+                        min.node.size = 5,
+                        tune.parameters = "all",
+                        seed = 20220524)
 
 #histogram of estimated HTE via causal forest
 hist(predict(forest)$predictions)
@@ -466,9 +479,9 @@ Y <- star_g7_reading |>
   as.vector()
 
 star_g7_x <- star_g7_reading |>
-  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
+  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, -yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
   select(!starts_with(c("birth", "flag"))) |>
-  select(!ends_with("schid")) |>
+  select(!ends_with(c("schid", "promote", "_k", "_g1", "_g2", "_g3", "tchid", "classsize"))) |>
   select(!contains(c(g7_outcomes)))
 ```
 
@@ -477,6 +490,16 @@ star_g7_x <- star_g7_reading |>
 ```{r g7 reading linear regression}
 
 # primary analysis
+linear_regression <- plm(g7treadss ~ factor(W) + factor(race) + gender + gksurban + g1surban + g2surban + g3surban + gkfreelunch + g1freelunch + g2freelunch + g3freelunch,
+                  data = star_g7_reading,
+                  index = c("schid_yr1star"),
+                  model = "within")
+
+# print summary using robust standard errors
+coeftest(linear_regression, vcov. = vcovHC, type = "HC1")
+
+
+#exploratory analyses
 bivariate_ols <- lm(g7treadss ~ W 
                     + as.factor(gkschid)
                     + as.factor(g1schid)
@@ -488,7 +511,6 @@ bivariate_ols <- lm(g7treadss ~ W
                     + as.factor(g7schid), data=star_g7_reading)
 summary(bivariate_ols)
 
-#exploratory analyses
 yearssmall_ols <- lm(g7treadss ~ as.factor(yearssmall) + as.factor(gkschid)
                      + as.factor(g1schid)
                      + as.factor(g2schid)
@@ -543,7 +565,7 @@ summary(g3small_ols)
 ### ATE via Causal Forest/AIPW
 
 ```{r g7 reading aipw}
-set.seed(123)
+
 n <-nrow(star_g7_reading)
 
 # Number of rankings predictions will be ranked on
@@ -558,7 +580,9 @@ folds <- sort(seq(n) %% num.folds) + 1
 # Estimate a causal forest
 forest <- causal_forest(X = star_g7_x, Y=Y, W=W,W.hat=mean(W),
                         clusters = star_g7_reading$schid_yr1star,
-                        min.node.size = 5)
+                        min.node.size = 5,
+                        tune.parameters = "all",
+                        seed = 20220524)
 
 #histogram of estimated heterogeneous effects
 hist(predict(forest)$predictions)
@@ -572,7 +596,6 @@ g7_ate_reading <- average_treatment_effect(forest, target.sample = "overlap", me
 g7_ate_reading_se <- g7_ate_reading[2]
 g7_ate_reading <- g7_ate_reading[1]
 
-#not statistically significant
 print(paste0("95% CI: ", round(g7_ate_reading,2),
              " +/- ", round(1.96 * g7_ate_reading_se, 2)))
 
@@ -621,15 +644,26 @@ Y <- star_hs_1 |>
   as.vector()
 
 star_hs_x <- star_hs_1 |>
-  select(-W, -stdntid) |>
-  select(!contains(c(hs_outcomes)))
+  select(-W, -stdntid, -gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,-cmpsdura, -yearssmall, -yearsstar, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass) |>
+  select(!starts_with(c("birth", "flag"))) |>
+  select(!ends_with(c("schid", "promote", "_k", "_g1", "_g2", "_g3", "tchid", "classsize")))
 ```
 
 ### ATE via linear regression
 
 ```{r hs linear regression}
 
-#primary analysis
+# primary analysis
+linear_regression <- plm(hsgpaoverall ~ factor(W) + factor(race) + gender,
+                  data = star_hs_1,
+                  index = c("schid_yr1star"),
+                  model = "within")
+
+# print summary using robust standard errors
+coeftest(linear_regression, vcov. = vcovHC, type = "HC1")
+
+
+#exploratory analyses
 bivariate_ols <- lm(hsgpaoverall ~ W + as.factor(gkschid)
                     + as.factor(g1schid)
                     + as.factor(g2schid)
@@ -642,7 +676,7 @@ bivariate_ols <- lm(hsgpaoverall ~ W + as.factor(gkschid)
                     , data=star_hs_1)
 summary(bivariate_ols)
 
-#exploratory analyses
+
 yearssmall_ols <- lm(hsgpaoverall ~ as.factor(yearssmall) 
                      + as.factor(gkschid)
                      + as.factor(g1schid)
@@ -678,7 +712,6 @@ summary(g3small_ols)
 ### ATE via Causal Forest/AIPW
 
 ```{r hs aipw}
-set.seed(123)
 
 n <- nrow(star_hs_1)
 
@@ -693,8 +726,10 @@ folds <- sort(seq(n) %% num.folds) + 1
 
 # Estimate a causal forest
 forest <- causal_forest(X = star_hs_x, Y=Y, W=W, W.hat=mean(W),
-                        clusters = star_hs_x$hsid,
-                        min.node.size = 5)
+                        clusters = star_hs_1$schid_yr1star,
+                        min.node.size = 5,
+                        tune.parameters = "all",
+                        seed = 20220524)
 
 #histogram of estimated HTE via causal forest
 hist(predict(forest)$predictions)
@@ -708,7 +743,7 @@ hs_ate <- average_treatment_effect(forest, target.sample = "overlap", method = "
 hs_ate_se <- hs_ate[2]
 hs_ate <- hs_ate[1]
 
-#not statistically significant
+
 print(paste0("95% CI: ", round(hs_ate,2),
              " +/- ", round(1.96 * hs_ate_se, 2)))
 
