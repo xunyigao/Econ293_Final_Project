@@ -97,7 +97,10 @@ star_short_term <- star[,!(names(star) %in% drop_for_short_term)]
 
 # Drop future (beyond grade 3) outcomes and characteristics
 star_short_term <- star_short_term %>% 
-  select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs")))
+  dplyr::select(!starts_with(c("g4", "g5", "g6", "g7", "g8" , "hs")))
+
+save(star_short_term, file = "./data/star_short_term.rda")
+
 
 # LONG TERM OUTCOMES
 #7TH GRADE
