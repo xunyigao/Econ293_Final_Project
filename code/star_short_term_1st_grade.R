@@ -15,8 +15,6 @@ options(stringAsFactors=FALSE)
 # Load cleaned student-level data
 load("./data/star_short_term.rda")
 
-# Drop small class size flags
-
 
 # Define short-term: grade 3 outcomes
 short_term_outcomes <- c("g1treadss", "g1tmathss", "g1wordskillss")
@@ -25,7 +23,7 @@ star_short_term <- star_short_term %>%
   filter(!is.na(g1_smallclass)) %>% 
   mutate(W = if_else(g1_smallclass==1, 1, 0))
   
-
+# Drop small class size flags
 star_short_term <- star_short_term %>% 
   dplyr::select(-gkclasstype, -g1classtype, -g2classtype, -g3classtype, -cmpstype,
                 -yearssmall, -gk_smallclass, -g1_smallclass, -g2_smallclass, -g3_smallclass,
@@ -36,7 +34,7 @@ star_short_term <- star_short_term %>%
 #   filter(!is.na(g3tmathss)) %>%
 #   dplyr::select(-(ends_with("_k") | ends_with("_g1") | ends_with("_g2"))) 
 
-# Exclude schoo level characteristics
+# Exclude school level characteristics
 star_short_term_1 <- star_short_term %>%
   dplyr::select(-(ends_with("_k") | ends_with("_g1") | ends_with("_g2") | ends_with("_g3")))
 
@@ -48,7 +46,7 @@ std_err <- function(x) sd(x)/sqrt(length(x))
 for (outcome in short_term_outcomes) {
   
   # Drop observations with missing values for the outcome
-  star_short_term_1 <- star_short_term %>%
+  star_short_term_1 <- star_short_term_1 %>%
     filter(!is.na(get(outcome)))
   
   # Define outcome and treatment vectors
@@ -90,7 +88,7 @@ for (outcome in short_term_outcomes) {
                   model = "within")
   
   # print summary using robust standard errors
-  coeftest(fe_model, vcov. = vcovHC, type = "HC1")
+  print(coeftest(fe_model, vcov. = vcovHC, type = "HC1"))
   
   
   # Causal Forest -----------------------------------------------------------
@@ -103,15 +101,12 @@ for (outcome in short_term_outcomes) {
                           seed = 20220524)
   
   # Plot propensity scores
-  hist(forest$W.hat)
+  # hist(forest$W.hat)
   
   # Average treatment effect
-  average_treatment_effect(forest, method = "AIPW")
+  print(average_treatment_effect(forest, method = "AIPW"))
   
-  # Test for heterogeneous treatment effects
-  test_calibration(forest)
   
-  #
   # Explore variable importance suggested by the causal forest
   # var_importance <- variable_importance(forest) %>% 
   #   as_tibble() %>% 
@@ -127,7 +122,17 @@ for (outcome in short_term_outcomes) {
   star_short_term_x <- star_short_term_x %>% 
     mutate(cate_estimate = predict(forest)$predictions)
   
-  hist(predict(forest)$predictions)
+  star_short_term_x %>% 
+    ggplot(aes(x = cate_estimate)) +
+    geom_histogram(bins = 50, color = "black") + 
+    theme_light() +
+    xlab("CATE Estimate") +
+    ylab("Number of students")
+  
+  ggsave(glue("./graphs/cate_estimates_hist_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
+  
   
   # ggplot(star_short_term_x, aes(race, g1freelunch, fill = cate_estimate)) +
   #   geom_raster()
@@ -142,8 +147,91 @@ for (outcome in short_term_outcomes) {
   
   save(star_short_term_x, file = glue("./data/cate_estimates_short_term_{outcome}.rda"))
 
-}
 
+# Analyzing CATE estimates ------------------------------------------------
+
+
+# Test for heterogeneous treatment effects
+  test_calibration(forest)
+  
+  quartile_est_df <- tibble(quartile = rep(c(1, 2, 3, 4), 2), 
+                            type = c(rep("Mean CATE", 4), rep("AIPW ATE", 4)),
+                            estimate = rep(NA_real_, 8),
+                            std_err = rep(NA_real_, 8))
+  
+  
+  star_short_term_x <- star_short_term_x %>% 
+    mutate(
+      y = Y,
+      cate_quartile = ntile(cate_estimate, 4),
+      w = W
+    )
+  
+  # Compute ATE using AIPW for each quartile
+  for (q in seq(1, 4, 1)) {
+    
+    X_q = star_short_term_x %>%
+      filter(cate_quartile==q) %>% 
+      dplyr::select(-cate_quartile, -cate_estimate, -y, -w) 
+    
+    Y_q <- star_short_term_x %>%
+      filter(cate_quartile==q) %>% 
+      pull(y)
+    
+    W_q <- star_short_term_x %>%
+      filter(cate_quartile==q) %>% 
+      pull(w)
+    
+    g1_school <- star_short_term_x %>%
+      filter(cate_quartile==q) %>%
+      pull(g1schid)
+    
+    forest_q <- causal_forest(X_q, Y_q, W_q,
+                              clusters = g1_school,
+                              tune.parameters = "all",
+                              seed = 20220524)
+    
+    quartile_ate <- average_treatment_effect(forest_q, target.sample = "overlap")
+    
+    aipw_se = quartile_ate[2]
+    
+    # print(quartile_ate)
+    
+    mean_cate = star_short_term_x %>%
+      filter(cate_quartile==q) %>% 
+      pull(cate_estimate) %>% 
+      mean()
+    
+    cate_se = star_short_term_x %>%
+      filter(cate_quartile==q) %>% 
+      pull(cate_estimate) %>% 
+      std_err()
+    
+    quartile_est_df[q, "estimate"] <- mean_cate
+    quartile_est_df[q, "std_err"] <- cate_se
+    quartile_est_df[q+4, "estimate"] <- quartile_ate[1]
+    quartile_est_df[q+4, "std_err"] <- aipw_se
+    
+    # print(mean_cate)
+    
+  }
+  
+  ggplot(quartile_est_df) +
+    aes(x = quartile, y = estimate, group=type, color=type) + 
+    geom_point(position=position_dodge(0.2), size = 3) +
+    geom_errorbar(aes(ymin=estimate-2*std_err, ymax=estimate+2*std_err),
+                  width=.2, position=position_dodge(0.2),
+                  size = 1.2) +
+    ylab("") + xlab("CATE Quartile") +
+    theme_light() +
+    theme(legend.position="bottom", legend.title = element_blank())  
+    
+  ggsave(glue("./graphs/cate_quartiles_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
+
+
+}
 
 # QINI Curve --------------------------------------------------------------
 
