@@ -177,7 +177,7 @@ std_err <- function(x) sd(x)/sqrt(length(x))
 
 ```{r g1 outcomes}
 
-
+i <- 0 
 for (outcome in short_term_outcomes) {
   
   # Drop observations with missing values for the outcome
@@ -261,16 +261,26 @@ for (outcome in short_term_outcomes) {
   star_short_term_x <- star_short_term_x %>% 
     mutate(cate_estimate = predict(forest)$predictions)
   
+  titles <- c("Reading", "Math", "Word Skills")
+  i <- i + 1
+  
   star_short_term_x %>% 
     ggplot(aes(x = cate_estimate)) +
     geom_histogram(bins = 50, color = "black") + 
     theme_light() +
-    xlab("CATE Estimate") +
-    ylab("Number of students")
+    xlab("CATE Estimates") +
+    ylab("Number of students") +
+    geom_vline(aes(xintercept=ate[1]), color="cyan") +
+    geom_text(aes(x=(ate[1] - 1), label="AIPW ATE", y=310), color='cyan', size = 12) +
+    ggtitle(paste("Histogram of 1st Grade", titles[i], "CATE Estimates")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20)) 
   
-  # ggsave(glue("./graphs/cate_estimates_hist_short_term_{outcome}.png"),
-  #       width = 14,
-  #       height = 10)
+   ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_estimates_hist_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
   
   
   # ggplot(star_short_term_x, aes(race, g1freelunch, fill = cate_estimate)) +
@@ -362,14 +372,82 @@ for (outcome in short_term_outcomes) {
                   width=.2, position=position_dodge(0.2),
                   size = 1.2) +
     ylab("") + xlab("CATE Quartile") +
+    ggtitle(paste("1st Grade", titles[i], "CATE Estimates by Quartile")) +
     theme_light() +
-    theme(legend.position="bottom", legend.title = element_blank())  
+    theme(legend.position="bottom", 
+          legend.title = element_blank(), 
+          plot.title = element_text(hjust = 0.5, size = 30),
+          axis.text = element_text(size=16),
+          axis.title = element_text(size = 20),
+          legend.text = element_text(size = 20))  
     
-  # ggsave(glue("./graphs/cate_quartiles_short_term_{outcome}.png"),
-  #       width = 14,
-  #       height = 10)
+   ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_quartiles_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
 
-
+   #heterogeneity by free lunch status plots 
+   
+  star_short_term_x %>% 
+    filter(!is.na(g1freelunch)) %>%
+    ggplot(aes(x = factor(g1freelunch), y = cate_estimate, fill = factor(g1freelunch))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student Receives Free Lunch") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("1st Grade", titles[i], "CATE Estimates by Student Free Lunch Status")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2"),
+                      labels=c("Yes", "No"))
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_freelunch_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
+  
+  #heterogeneity by school urbanicity plots 
+   
+  star_short_term_x %>% 
+    ggplot(aes(x = factor(g1surban), y = cate_estimate, fill = factor(g1surban))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Urbanicity of Student's School") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("1st Grade", titles[i], "CATE Estimates by Urbanicity of Student's School")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4"),
+                      labels=c("Inner City", "Suburban", "Rural", "Urban"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_urbanicity_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
+   
+  #heterogeneity by race plots 
+   
+  star_short_term_x %>% 
+    filter(!is.na(race)) %>%
+    ggplot(aes(x = factor(race), y = cate_estimate, fill = factor(race))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student's Race") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("1st Grade", titles[i], "CATE Estimates by Students' Race")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4", "5", "6"),
+                      labels=c("White", "Black", "Asian", "Hispanic", "Native American", "Other"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_race_short_term_{outcome}.png"),
+         width = 14,
+         height = 10)
 }
 
 ```
@@ -547,6 +625,71 @@ g7_math_hte
 
 ```{r g7 math visualizations}
 
+#heterogeneity by free lunch status plots 
+   
+  star_g7_math_hte %>% 
+    filter(!is.na(g3freelunch)) %>%
+    ggplot(aes(x = factor(g3freelunch), y = hte, fill = factor(g3freelunch))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student Receives Free Lunch") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("7th Grade Math CATE Estimates by Student Free Lunch Status")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2"),
+                      labels=c("Yes", "No"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_freelunch_g7_math.png"),
+         width = 14,
+         height = 10)
+  
+  #heterogeneity by school urbanicity plots 
+   
+  star_g7_math_hte %>% 
+    filter(!is.na(g3surban)) %>%
+    ggplot(aes(x = factor(g3surban), y = hte, fill = factor(g3surban))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Urbanicity of Student's School") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("7th Grade Math CATE Estimates by Urbanicity of Student's School")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4"),
+                      labels=c("Inner City", "Suburban", "Rural", "Urban"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_urbanicity_g7_math.png"),
+         width = 14,
+         height = 10)
+  
+   #heterogeneity by race plots
+  
+  star_g7_math_hte %>% 
+    filter(!is.na(race)) %>%
+    ggplot(aes(x = factor(race), y = hte, fill = factor(race))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student's Race") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("7th Grade Math CATE Estimates by Students' Race")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4", "5", "6"),
+                      labels=c("White", "Black", "Asian", "Hispanic", "Native American", "Other"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_race_g7_math.png"),
+         width = 14,
+         height = 10)
 ```
 
 ## 7th grade reading
@@ -714,6 +857,72 @@ g7_reading_hte
 
 ```{r g7 reading visualizations}
 
+#heterogeneity by free lunch status plots 
+   
+  star_g7_reading_hte %>% 
+    filter(!is.na(g3freelunch)) %>%
+    ggplot(aes(x = factor(g3freelunch), y = hte, fill = factor(g3freelunch))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student Receives Free Lunch") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("7th Grade Reading CATE Estimates by Student Free Lunch Status")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2"),
+                      labels=c("Yes", "No"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_freelunch_g7_reading.png"),
+         width = 14,
+         height = 10)
+  
+  #heterogeneity by school urbanicity plots 
+   
+  star_g7_reading_hte %>% 
+    filter(!is.na(g3surban)) %>%
+    ggplot(aes(x = factor(g3surban), y = hte, fill = factor(g3surban))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Urbanicity of Student's School") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("7th Grade Reading CATE Estimates by Urbanicity of Student's School")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4"),
+                      labels=c("Inner City", "Suburban", "Rural", "Urban"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_urbanicity_g7_reading.png"),
+         width = 14,
+         height = 10)
+  
+  
+  #heterogeneity by race plots
+  
+  star_g7_reading_hte %>% 
+    filter(!is.na(race)) %>%
+    ggplot(aes(x = factor(race), y = hte, fill = factor(race))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student's Race") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("7th Grade Reading CATE Estimates by Students' Race")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4", "5", "6"),
+                      labels=c("White", "Black", "Asian", "Hispanic", "Native American", "Other"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_race_g7_reading.png"),
+         width = 14,
+         height = 10)
 ```
 
 ## High School GPA
@@ -862,18 +1071,90 @@ hs_hte
 
 ```{r hs visualizations}
 
+#heterogeneity by free lunch status plots 
+   
+  star_hs_1_hte %>% 
+    filter(!is.na(g3freelunch)) %>%
+    ggplot(aes(x = factor(g3freelunch), y = hte, fill = factor(g3freelunch))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student Receives Free Lunch") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("High School Composite GPA CATE Estimates\n by Student Free Lunch Status")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2"),
+                      labels=c("Yes", "No"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_freelunch_HS.png"),
+         width = 14,
+         height = 10)
+  
+  #heterogeneity by school urbanicity plots 
+   
+  star_hs_1_hte %>% 
+    filter(!is.na(g3surban)) %>%
+    ggplot(aes(x = factor(g3surban), y = hte, fill = factor(g3surban))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Urbanicity of Student's School") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("High School Composite GPA CATE Estimates by\n Urbanicity of Student's School")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4"),
+                      labels=c("Inner City", "Suburban", "Rural", "Urban"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_urbanicity_HS.png"),
+         width = 14,
+         height = 10)
+  
+  
+  #heterogeneity by race plots
+  
+  star_hs_1_hte %>% 
+    filter(!is.na(race)) %>%
+    ggplot(aes(x = factor(race), y = hte, fill = factor(race))) +
+    geom_boxplot() + 
+    theme_light() +
+    xlab("Student's Race") +
+    ylab("CATE Estimates") +
+    ggtitle(paste("High School Composite GPA CATE Estimates\n by Students' Race")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 30),
+        axis.text = element_text(size=16),
+        axis.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.position = "none") +
+    scale_x_discrete(breaks=c("1", "2", "3", "4", "5", "6"),
+                      labels=c("White", "Black", "Asian", "Hispanic", "Native American", "Other"))
+  
+  ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_race_hs.png"),
+         width = 14,
+         height = 10)
 ```
 
-# Cost-Benefit Analysis
+# School-Level Analysis
 
 ### Cleaning
 
-```{r}
+```{r school-level cleaning}
+
+```
+
+### Analysis
+
+```{r school-level analysis}
 
 ```
 
 ### Visualizations
 
-```{r}
+```{r school-level visualizations}
 
 ```
