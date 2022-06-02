@@ -2,12 +2,16 @@
 title: "Machine Learning and Causal Inference Final Project"
 author: "Lucy Caffrey-Maffei"
 date: "5/12/2022"
-output: word_document
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
 ---
 
 # Setup
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
@@ -28,10 +32,8 @@ p_load(labelled, plm, sandwich, lmtest, glue)
 # Set working directory
 options(stringAsFactors=FALSE)
 
-setwd("~/Documents/Github/Econ293_Final_Project/")
 
-
-star <- read_sav("./data/STAR_Students.sav")
+star <- read_sav("~/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/Untitled/data/STAR_Students.sav")
 names(star) <- tolower(names(star))
 
 # creating indicator variable for treatment group; 1 = in small class for at least a year in grades kinder - 3rd
@@ -60,7 +62,7 @@ star$schid_yr1star <- case_when(star$flagsgk == 1 ~ star$gkschid,
                                 ((star$flagsgk == 0) & (star$flagsg1 == 0) & (star$flagsg2 == 0) & (star$flagsg3 == 1)) ~ star$g3schid)
 
 # Load K-3 school level data
-k3_schools <- read_sav("./data/STAR_K-3_Schools.sav")
+k3_schools <- read_sav("~/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/Untitled/data/STAR_K-3_Schools.sav")
 
 k3_schools <- k3_schools %>% clean_names()
 
@@ -146,7 +148,7 @@ star_hs <- star[,!(names(star) %in% drop_for_hs)]
 
 ### Cleaning
 
-```{r g3 math cleaning}
+```{r g3 math cleaning, warning=FALSE}
 
 star_short_term <- star_short_term %>% 
   filter(!is.na(g1_smallclass)) %>% 
@@ -387,7 +389,7 @@ for (outcome in short_term_outcomes) {
 
    #heterogeneity by free lunch status plots 
    
-  star_short_term_x %>% 
+  print(star_short_term_x %>% 
     filter(!is.na(g1freelunch)) %>%
     ggplot(aes(x = factor(g1freelunch), y = cate_estimate, fill = factor(g1freelunch))) +
     geom_boxplot() + 
@@ -401,14 +403,14 @@ for (outcome in short_term_outcomes) {
         legend.text = element_text(size = 20),
         legend.position = "none") +
     scale_x_discrete(breaks=c("1", "2"),
-                      labels=c("Yes", "No"))
+                      labels=c("Yes", "No")))
   ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_freelunch_short_term_{outcome}.png"),
          width = 14,
          height = 10)
   
   #heterogeneity by school urbanicity plots 
    
-  star_short_term_x %>% 
+  print(star_short_term_x %>% 
     ggplot(aes(x = factor(g1surban), y = cate_estimate, fill = factor(g1surban))) +
     geom_boxplot() + 
     theme_light() +
@@ -421,7 +423,7 @@ for (outcome in short_term_outcomes) {
         legend.text = element_text(size = 20),
         legend.position = "none") +
     scale_x_discrete(breaks=c("1", "2", "3", "4"),
-                      labels=c("Inner City", "Suburban", "Rural", "Urban"))
+                      labels=c("Inner City", "Suburban", "Rural", "Urban")))
   
   ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_urbanicity_short_term_{outcome}.png"),
          width = 14,
@@ -429,7 +431,7 @@ for (outcome in short_term_outcomes) {
    
   #heterogeneity by race plots 
    
-  star_short_term_x %>% 
+  print(star_short_term_x %>% 
     filter(!is.na(race)) %>%
     ggplot(aes(x = factor(race), y = cate_estimate, fill = factor(race))) +
     geom_boxplot() + 
@@ -443,7 +445,7 @@ for (outcome in short_term_outcomes) {
         legend.text = element_text(size = 20),
         legend.position = "none") +
     scale_x_discrete(breaks=c("1", "2", "3", "4", "5", "6"),
-                      labels=c("White", "Black", "Asian", "Hispanic", "Native American", "Other"))
+                      labels=c("White", "Black", "Asian", "Hispanic", "Native American", "Other")))
   
   ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_race_short_term_{outcome}.png"),
          width = 14,
@@ -458,7 +460,7 @@ for (outcome in short_term_outcomes) {
 
 ### Cleaning
 
-```{r g7 math cleaning}
+```{r g7 math cleaning, warning=FALSE}
 
 star_g7_math <- star_g7 |>
   filter(!is.na(g7tmathss))
@@ -482,7 +484,7 @@ star_g7_x <- star_g7_math |>
 
 ### ATE via linear regression
 
-```{r g7 math linear regression}
+```{r g7 math linear regression, warning=FALSE}
 #primary analysis
 linear_regression <- plm(g7tmathss ~ factor(W) + factor(race) + gender + gksurban + g1surban + g2surban + g3surban + gkfreelunch + g1freelunch + g2freelunch + g3freelunch,
                   data = star_g7_math,
@@ -564,7 +566,7 @@ summary(g3small_ols)
 
 ### ATE via Causal Forest/AIPW
 
-```{r g7 math aipw}
+```{r g7 math aipw, warning=FALSE}
 
 n <-nrow(star_g7_math)
 
@@ -623,7 +625,7 @@ g7_math_hte
 
 ### Visualizations
 
-```{r g7 math visualizations}
+```{r g7 math visualizations, warning=FALSE}
 
 #heterogeneity by free lunch status plots 
    
@@ -696,7 +698,7 @@ g7_math_hte
 
 ### Cleaning
 
-```{r g7 reading cleaning}
+```{r g7 reading cleaning, warning=FALSE}
 
 star_g7_reading <- star_g7 |>
   filter(!is.na(g7treadss))
@@ -719,7 +721,7 @@ star_g7_x <- star_g7_reading |>
 
 ### ATE via linear regression
 
-```{r g7 reading linear regression}
+```{r g7 reading linear regression, warning=FALSE}
 
 # primary analysis
 linear_regression <- plm(g7treadss ~ factor(W) + factor(race) + gender + gksurban + g1surban + g2surban + g3surban + gkfreelunch + g1freelunch + g2freelunch + g3freelunch,
@@ -796,7 +798,7 @@ summary(g3small_ols)
 
 ### ATE via Causal Forest/AIPW
 
-```{r g7 reading aipw}
+```{r g7 reading aipw, warning=FALSE}
 
 n <-nrow(star_g7_reading)
 
@@ -848,14 +850,14 @@ important_vars_g7_reading
 
 ### HTE via Causal Forest
 
-```{r g7 reading hte}
+```{r g7 reading hte, warning=FALSE}
 g7_reading_hte <- test_calibration(forest)
 g7_reading_hte
 ```
 
 ### Visualizations
 
-```{r g7 reading visualizations}
+```{r g7 reading visualizations, warning=FALSE}
 
 #heterogeneity by free lunch status plots 
    
@@ -929,7 +931,7 @@ g7_reading_hte
 
 ### Cleaning
 
-```{r hs cleaning}
+```{r hs cleaning, warning=FALSE}
 star_hs_1 <- star_hs |>
   filter(!is.na(hsgpaoverall))
 
@@ -950,7 +952,7 @@ star_hs_x <- star_hs_1 |>
 
 ### ATE via linear regression
 
-```{r hs linear regression}
+```{r hs linear regression, warning=FALSE}
 
 # primary analysis
 linear_regression <- plm(hsgpaoverall ~ factor(W) + factor(race) + gender,
@@ -1010,7 +1012,7 @@ summary(g3small_ols)
 
 ### ATE via Causal Forest/AIPW
 
-```{r hs aipw}
+```{r hs aipw, warning=FALSE}
 
 n <- nrow(star_hs_1)
 
@@ -1069,7 +1071,7 @@ hs_hte
 
 ### Visualizations
 
-```{r hs visualizations}
+```{r hs visualizations, warning=FALSE}
 
 #heterogeneity by free lunch status plots 
    
@@ -1137,24 +1139,4 @@ hs_hte
   ggsave(glue("/Users/lacm/Documents/Stanford/ECON 293 -  Machine Learning & Causal Inference/Econ293_Final_Project/cate_race_hs.png"),
          width = 14,
          height = 10)
-```
-
-# School-Level Analysis
-
-### Cleaning
-
-```{r school-level cleaning}
-
-```
-
-### Analysis
-
-```{r school-level analysis}
-
-```
-
-### Visualizations
-
-```{r school-level visualizations}
-
 ```
